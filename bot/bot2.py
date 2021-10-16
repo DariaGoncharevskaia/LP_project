@@ -1,4 +1,5 @@
 import logging
+from queue import PriorityQueue
 #import pandas as pd
 #import yfinance as yf
 #import numpy as np
@@ -38,6 +39,7 @@ logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
 #collect_companies = False
 finSector = False
 fin_list = []
+
 PROXY = {
     'proxy_url': 'socks5://t1.learn.python.ru:1080',
     'urllib3_proxy_kwargs': {
@@ -47,10 +49,18 @@ PROXY = {
 }
 
 conn = redis.Redis('localhost')
-finance_dict = conn.hgetall("finance_dict").items()
+finance_dict = conn.hgetall("finance_dict") #.items()
+new_finance_dict = {}
 finance_comp_name = []
-for key, value in finance_dict:
+for key, value in finance_dict.items():
+    new_finance_dict[key.decode('utf-8')] = value.decode('utf-8')
+print(new_finance_dict)
+#print(finance_dict)
+#print(type(finance_dict))
+for key, value in finance_dict.items():
     finance_comp_name.append(key.decode('utf-8'))
+
+
 
 def greet_user(update, context):
     print("Вызван /start")
@@ -65,8 +75,8 @@ def main_keyboard():
 def next():
     return ReplyKeyboardMarkup([['Другой сектор']])
 
-def final_button():
-    return ReplyKeyboardMarkup([['Все']])
+#def next():
+#    return ReplyKeyboardMarkup([['Все']])
 
    
 #def help_command(message):  
@@ -102,11 +112,21 @@ def collecting_user_data(update, context):
     user_input = update.message.text
     if finSector:
         fin_list.append(user_input)
-        update.message.reply_text(f"{'Ваше сообщение:'} {', '.join(fin_list)}", reply_markup=final_button())
+        update.message.reply_text(f"{'Ваше сообщение:'} {', '.join(fin_list)}", reply_markup=next())
     else:
         print('finance button off')
     return None
-
+      
+def tic(update, context):   
+    tic_list = []
+    print("FIN LUST", fin_list)
+    print("finance_dict", type(new_finance_dict))
+    for name in fin_list:
+        tic_list.append(new_finance_dict.get(name))
+    print("TIC LIST", tic_list)
+    update.message.reply_text(f"{'Ваши тикеры:'} {', '.join(tic_list)}", reply_markup=next())
+    print(tic_list)
+        
     
 
 #def get_tic(update, list_input_user):
@@ -120,7 +140,7 @@ def collecting_user_data(update, context):
 def test_func(update, context):
     text = update.message.text
     my_keyboard = ReplyKeyboardMarkup([['Другой сектор']], True)
-    update.message.reply_text(f"{'Ваше сообщение:'} {', '.join(list_input_user)}", reply_markup=final_button())
+    #update.message.reply_text(f"{'Ваше сообщение:'} {', '.join(list_input_user)}", reply_markup=next())
 
 
 def main():
@@ -132,7 +152,9 @@ def main():
     dp.add_handler(MessageHandler(Filters.regex('^Финансы'), finance_handler))
     #dp.add_handler(MessageHandler(Filters.text, talk_to_me_2))
     dp.add_handler(MessageHandler(Filters.regex('^Другой сектор'), test_func))
+    dp.add_handler(CommandHandler("tic", tic))
     dp.add_handler(MessageHandler(Filters.text, collecting_user_data))
+
     #dp.add_handler(CommandHandler("help", help_command))
 
     # dp.add_handler(MessageHandler(Filters.text, portfolio_construct))
