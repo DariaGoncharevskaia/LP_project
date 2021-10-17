@@ -35,5 +35,7 @@ industrials_dict = dict(zip(industrials_list_company_name, industrials_list_tic)
 conn = redis.Redis('localhost')
 
 print(json.dumps(industrials_dict))
-for key, value in industrials_dict.items():
-    conn.hset("industrials_dict", key, value)
+conn.hmset("industrials_dict", industrials_dict)
+#print(json.dumps(industrials_dict))
+#for key, value in industrials_dict.items():
+ #   conn.hset("industrials_dict", key, value)

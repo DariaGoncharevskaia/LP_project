@@ -34,5 +34,7 @@ telecom_dict = dict(zip(telecom_list_company_name, telecom_list_tic))
 conn = redis.Redis('localhost')
 
 print(json.dumps(telecom_dict))
-for key, value in telecom_dict.items():
-    conn.hset("telecom_dict", key, value)
+conn.hmset("telecom_dict", telecom_dict)
+# print(json.dumps(telecom_dict))
+# for key, value in telecom_dict.items():
+#     conn.hset("telecom_dict", key, value)

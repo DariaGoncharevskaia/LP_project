@@ -36,5 +36,7 @@ technology_dict = dict(zip(technology_list_company_name, technology_list_tic))
 conn = redis.Redis('localhost')
 
 print(json.dumps(technology_dict))
-for key, value in technology_dict.items():
-    conn.hset("technology_dict", key, value)
+conn.hmset("technology_dict", technology_dict)
+# print(json.dumps(technology_dict))
+# for key, value in technology_dict.items():
+#     conn.hset("technology_dict", key, value)

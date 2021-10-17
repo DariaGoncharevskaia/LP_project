@@ -38,5 +38,7 @@ energy_dict = dict(zip(energy_list_company_name, energy_list_tic))
 conn = redis.Redis('localhost')
 
 print(json.dumps(energy_dict))
-for key, value in energy_dict.items():
-    conn.hset("energy_dict", key, value)
+conn.hmset("energy_dict", energy_dict)
+#print(json.dumps(energy_dict))
+#for key, value in energy_dict.items():
+ #   conn.hset("energy_dict", key, value)

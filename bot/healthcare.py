@@ -17,5 +17,7 @@ healthcare_dict = dict(zip(healthcare_list_company_name, healthcare_list_tic))
 conn = redis.Redis('localhost')
 
 print(json.dumps(healthcare_dict))
-for key, value in healthcare_dict.items():
-    conn.hset("healthcare_dict", key, value)
+conn.hmset("healthcare_dict", healthcare_dict)
+#print(json.dumps(healthcare_dict))
+#for key, value in healthcare_dict.items():
+ #   conn.hset("healthcare_dict", key, value)

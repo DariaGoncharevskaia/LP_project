@@ -33,5 +33,7 @@ discretionary_dict = dict(zip(discretionary_list_company_name, discretionary_lis
 conn = redis.Redis('localhost')
 
 print(json.dumps(discretionary_dict))
-for key, value in discretionary_dict.items():
-    conn.hset("discretionary_dict", key, value)
+conn.hmset("discretionary_dict", discretionary_dict)
+#print(json.dumps(discretionary_dict))
+#for key, value in discretionary_dict.items():
+ #   conn.hset("discretionary_dict", key, value)

@@ -32,5 +32,7 @@ staples_dict = dict(zip(staples_list_company_name, staples_list_tic))
 conn = redis.Redis('localhost')
 
 print(json.dumps(staples_dict))
-for key, value in staples_dict.items():
-    conn.hset("staples_dict", key, value)
+conn.hmset("staples_dict", staples_dict)
+# print(json.dumps(staples_dict))
+# for key, value in staples_dict.items():
+#     conn.hset("staples_dict", key, value)
