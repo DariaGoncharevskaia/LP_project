@@ -1,33 +1,36 @@
+import matplotlib
+# matplotlib.use('Agg')
 import logging
-from queue import PriorityQueue
-#import pandas as pd
-#import yfinance as yf
-#import numpy as np
+import pandas as pd
+import yfinance as yf
+import numpy as np
+import markdown2
 import redis
 import json 
-#import pandas_datareader as web
-#import matplotlib.pyplot as plt
-#import telebot
-#import config
-#from pypfopt.expected_returns import mean_historical_return
-#from pypfopt import risk_models 
-#from pypfopt import expected_returns
-#from pypfopt.cla import CLA
-#import pypfopt.plotting as pplt
-#from matplotlib.ticker import FuncFormatter
-#from pypfopt.risk_models import CovarianceShrinkage
-#from pypfopt.efficient_frontier import EfficientFrontier
-#from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
+import os
+import scipy
+import pandas_datareader as web
+import matplotlib.pyplot as plt
+import pypfopt.plotting as pplt
+import statsmodels.api as sm
 
-from keyboa import keyboa_maker
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler
-from telegram import ReplyKeyboardMarkup, KeyboardButton
+from queue import PriorityQueue
+from typing import MutableMapping
+from scipy import stats
+from pypfopt.expected_returns import mean_historical_return
+from pypfopt import risk_models, expected_returns
+from pypfopt.cla import CLA
+from pypfopt.efficient_frontier import EfficientFrontier
+from matplotlib.ticker import FuncFormatter
+from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
+from datetime import datetime, timedelta
+from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
+from telegram import ReplyKeyboardMarkup
 
-# import finance
-# import portfolio
-
-from datetime import datetime
+import finance
+import portfolio
 import settings
+
 
 logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO,
@@ -143,9 +146,13 @@ def help_command(update, context):
     update.message.reply_text(
         f"2.Выбери компании, которые тебе интересны, из предложенных списков(вводи название и отправляй).")
     update.message.reply_text(
-        f"3. Используй команду /tic, чтобы получить сисок тикеров.")
+        f"3. Используй команду /tic, чтобы получить список тикеров.")
     update.message.reply_text(
-        f"4. Если клавиатура снова понадобится, то вызови команду /keyboard.", 
+        f"4. Используй команду /portfolio, чтобы составить портфель из выбранных компаний.")
+    update.message.reply_text(
+        f"5. Используй команду /describe, чтобы получить описание портфеля.")    
+    update.message.reply_text(
+        f"Если клавиатура снова понадобится, то вызови команду /keyboard.", 
         reply_markup= main_keyboard())
 
 def get_keyboard(update, context):
@@ -153,7 +160,7 @@ def get_keyboard(update, context):
         f"Возвращаю клавиатуру.", 
         reply_markup= main_keyboard()
         )
-      
+
 def main_keyboard():
     return ReplyKeyboardMarkup([['Финансы'], ['Потреб'], ['Энергетика'], ['Телеком'],
     ['Материалы'], ['Технологии'], ['Здравоохранение'], ['Промышленность'], ['Ритэйл']])
@@ -264,13 +271,13 @@ def collecting_user_data(update, context):
                 update.message.reply_text('Ошибка в названии компании, попробуй еще раз :(',
                 reply_markup=main_keyboard())
                 companies_list.remove(el)
-        update.message.reply_text(f"{'Ваше сообщение:'} {', '.join(companies_list)}", \
-        reply_markup=main_keyboard())
+        update.message.reply_text(f'{"Компании:"} {", ".join(companies_list)}', \
+             reply_markup=main_keyboard())
     else:
         print('button off')
     return None
 
-      
+
 def tic(update, context):   
     global tic_list 
     for name in companies_list:
@@ -278,18 +285,85 @@ def tic(update, context):
         if name_to_append not in tic_list:
             tic_list.append(name_to_append)
     print("TIC LIST", tic_list)
-    update.message.reply_text(f"{'Ваши тикеры:'} {', '.join(tic_list)}")
+    update.message.reply_text(f'{"Тикеры:"} {", ".join(tic_list)}')
     return tic_list
-        
+
+
+def portfolio_construct(update, context):
+    global data 
+    global mu 
+    global S 
+    global ex 
+    global weights
+    global cleaned_weights
+    global ef
+    data = pd.DataFrame(columns=tic_list)
+    today = datetime.today()
+
+    for ticker in tic_list:
+        data[ticker] = yf.download(ticker, start = today - timedelta(days=365), end=today) ['Adj Close']
+    mu = mean_historical_return(data)
+    S = risk_models.sample_cov(data)
+    ef = EfficientFrontier(mu, S, weight_bounds = (0,1))
+    weights = ef.max_sharpe()
+    cleaned_weights = ef.clean_weights()
+    print(data)
+    update.message.reply_text(f'{"*СОСТАВ ПОРТФЕЛЯ*"}', parse_mode='MarkdownV2')
+    for key, value in cleaned_weights.items():
+        update.message.reply_text(f'{"(Тикер: {0})  (Вес: {1})".format(key,value)}')
+
+
+    cl_obj = CLA(mu, S)
+    ax = pplt.plot_efficient_frontier(cl_obj, showfig = False)
+    ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
+    ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+    
+    tickers =[]
+    t_weights =[]
+
+    for i in cleaned_weights:
+  
+        if cleaned_weights[i] > 0:
+             t_weights.append(cleaned_weights[i])
+             tickers.append(i)
+    
+    fig1, ax1 = plt.subplots()
+    ax1.pie(t_weights, labels=tickers)
+    ax1.axis('equal')
+    patches, texts, auto = ax1.pie(t_weights, startangle=90, autopct='%1.1f%%' )
+    plt.legend(patches, tickers, loc="best")
+    plt.savefig('portfilio_chart.png', facecolor = 'blue', bbox_inches='tight', dpi=50 )
+
+    update.message.reply_text(f'{cleaned_weights}')
+    chat_id = update.effective_chat.id
+    context.bot.send_photo(chat_id=chat_id, photo=open('portfilio_chart.png', 'rb'))
+    import os
+    os.remove('portfilio_chart.png')
+    print(cleaned_weights)
+    print(f'построение графика')
+    return ax1
+    return cleaned_weights
+
+def describe(update, context):
+    dis = ef.portfolio_performance(verbose=True)
+    update.message.reply_text(f'{"*ОБЩИЕ ХАРАКТЕРИСТИКИ*"}', parse_mode='MarkdownV2')
+    update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}')
+    update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}')
+    update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}')
+    
+    # ДОДЕЛАТЬ
+# def price(update, context):
+#     user_input = update.message.text
+#     latest_prices1 = get_latest_prices(data)
+#     allocation_shp, rem_shp = DiscreteAllocation(cleaned_weights, latest_prices1, total_portfolio_value=user_input).lp_portfolio() 
+#     update.message.reply_text(allocation_shp)
+#     update.message.reply_text("Остаток: {:.2f} рублей".format(rem_shp))
 
 def main():
-    mybot = Updater(settings.API_KEY, use_context=True, request_kwargs=PROXY)
+    mybot = Updater(settings.API_KEY, use_context=True)
     dp = mybot.dispatcher
-    #if collect_companies:
-     #   dp.add_handler(MessageHandler(Filters.text, talk_to_me_2))
     dp.add_handler(CommandHandler("start", greet_user))
     dp.add_handler(MessageHandler(Filters.regex('^Финансы'), finance_handler))
-    
     dp.add_handler(MessageHandler(Filters.regex('^Потреб'), discretionary_handler))
     dp.add_handler(MessageHandler(Filters.regex('^Энергетика'), energy_handler))
     dp.add_handler(MessageHandler(Filters.regex('^Здравоохранение'), healthcare_handler))
@@ -301,14 +375,10 @@ def main():
     dp.add_handler(CommandHandler("tic", tic))
     dp.add_handler(CommandHandler("help", help_command))
     dp.add_handler(CommandHandler("keyboard", get_keyboard))
+    dp.add_handler(CommandHandler("portfolio", portfolio_construct))
+    dp.add_handler(CommandHandler("describe", describe))
     dp.add_handler(MessageHandler(Filters.text, collecting_user_data))
-
-    # dp.add_handler(MessageHandler(Filters.text, portfolio_construct))
-    # dp.add_handler(MessageHandler(Filters.text, talk_to_me_2))
-    #dp.add_handler(CommandHandler("my_budget_portfolio", my_budget_portfolio))
-    #dp.add_handler(CommandHandler("my_portfolio_stat", my_portfolio_stat))
-    #dp.add_handler(CommandHandler("my_portfolio_chart", my_portfolio_chart))
-
+   
     logging.info("Бот стартовал")
     mybot.start_polling()
     mybot.idle()
