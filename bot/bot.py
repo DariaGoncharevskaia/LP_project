@@ -13,7 +13,10 @@ import pandas_datareader as web
 import matplotlib.pyplot as plt
 import pypfopt.plotting as pplt
 import statsmodels.api as sm
+import requests
+import math
 
+from pprint import pprint
 from queue import PriorityQueue
 from typing import MutableMapping
 from scipy import stats
@@ -150,7 +153,11 @@ def help_command(update, context):
     update.message.reply_text(
         f"4. Используй команду /portfolio, чтобы составить портфель из выбранных компаний.")
     update.message.reply_text(
-        f"5. Используй команду /describe, чтобы получить описание портфеля.")    
+        f"5. Используй команду /describe, чтобы получить описание портфеля.")
+    update.message.reply_text(
+        f"6. Используй команду /price, чтобы вывести график изменения цен, выбранных акций.")
+    update.message.reply_text(
+        f"7. Используй команду /budget, чтобы ввести сумму для расчета количества акций.")    
     update.message.reply_text(
         f"Если клавиатура снова понадобится, то вызови команду /keyboard.", 
         reply_markup= main_keyboard())
@@ -273,9 +280,15 @@ def collecting_user_data(update, context):
                 companies_list.remove(el)
         update.message.reply_text(f'{"Компании:"} {", ".join(companies_list)}', \
              reply_markup=main_keyboard())
+        return None
     else:
         print('button off')
-    return None
+        global budget
+        budget = user_input
+        print(budget)
+        update.message.reply_text(f'{"Сумма:"} {budget}')
+        update.message.reply_text(f'Для расчета вызовите команду /value')
+    return budget  
 
 
 def tic(update, context):   
@@ -317,6 +330,7 @@ def portfolio_construct(update, context):
     ax = pplt.plot_efficient_frontier(cl_obj, showfig = False)
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
+    plt.savefig('markovitz_chart', dpi=50)
     
     tickers =[]
     t_weights =[]
@@ -334,14 +348,24 @@ def portfolio_construct(update, context):
     plt.legend(patches, tickers, loc="best")
     plt.savefig('portfilio_chart.png', facecolor = 'blue', bbox_inches='tight', dpi=50 )
 
-    update.message.reply_text(f'{cleaned_weights}')
+    ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
+    plt.legend()
+    plt.title("Adjusted Close Price", fontsize=16)
+    plt.ylabel('Price', fontsize=14)
+    plt.xlabel('Year', fontsize=14)
+    plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
+    plt.savefig('price_chart.png', dpi = 50)
+
+    # update.message.reply_text(f'{cleaned_weights}')
     chat_id = update.effective_chat.id
     context.bot.send_photo(chat_id=chat_id, photo=open('portfilio_chart.png', 'rb'))
+    # context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
+    # context.bot.send_photo(chat_id=chat_id, photo=open('markovitz_chart', 'rb'))
     import os
     os.remove('portfilio_chart.png')
     print(cleaned_weights)
     print(f'построение графика')
-    return ax1
+    return  ax1
     return cleaned_weights
 
 def describe(update, context):
@@ -350,14 +374,46 @@ def describe(update, context):
     update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}')
     update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}')
     update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}')
+
+def price_chart(update, context):
+    ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
+    plt.legend()
+    plt.title("Adjusted Close Price", fontsize=16)
+    plt.ylabel('Price', fontsize=14)
+    plt.xlabel('Year', fontsize=14)
+    plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
+    plt.savefig('price_chart.png', dpi = 50)
+    chat_id = update.effective_chat.id
+    context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
+    return ax2
+   
+def user_budget(update, context):
+    global collect_companies
+    collect_companies = False
+    if collect_companies == False: 
+        update.message.reply_text(f'{"Введите сумму в рублях."}')
+
+def value_p(update, context):
+    global budget
+    global data_usd
+    latest_prices1 = get_latest_prices(data)
+    data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
+    usd = data_usd['Valute']['USD']
+    usd = usd['Value']
+    budget = int(budget)
+    budget_usd = budget/usd
+    tc = latest_prices1.index
+    tc = tc.tolist()
+    quant = {}
+    for i in tc:
+        if i[-3] == '.':
+            latest_prices1[i] = latest_prices1[i]/usd
+        quant[i] = math.floor((budget_usd*cleaned_weights[i])/latest_prices1[i])
+        print(quant)
     
-    # ДОДЕЛАТЬ
-# def price(update, context):
-#     user_input = update.message.text
-#     latest_prices1 = get_latest_prices(data)
-#     allocation_shp, rem_shp = DiscreteAllocation(cleaned_weights, latest_prices1, total_portfolio_value=user_input).lp_portfolio() 
-#     update.message.reply_text(allocation_shp)
-#     update.message.reply_text("Остаток: {:.2f} рублей".format(rem_shp))
+    update.message.reply_text(f'{"*Потратив*"} {budget} {"вы сможете купить акции"}', parse_mode='MarkdownV2')
+    for i in quant:
+        update.message.reply_text(f'{i} {"в количестве"} {quant[i]}')
 
 def main():
     mybot = Updater(settings.API_KEY, use_context=True)
@@ -377,6 +433,9 @@ def main():
     dp.add_handler(CommandHandler("keyboard", get_keyboard))
     dp.add_handler(CommandHandler("portfolio", portfolio_construct))
     dp.add_handler(CommandHandler("describe", describe))
+    dp.add_handler(CommandHandler("price", price_chart))
+    dp.add_handler(CommandHandler("budget", user_budget))
+    dp.add_handler(CommandHandler("value", value_p))
     dp.add_handler(MessageHandler(Filters.text, collecting_user_data))
    
     logging.info("Бот стартовал")
