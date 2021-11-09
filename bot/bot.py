@@ -1,5 +1,5 @@
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('TkAgg')
 import logging
 import pandas as pd
 import yfinance as yf
@@ -16,16 +16,16 @@ import statsmodels.api as sm
 import requests
 import math
 
-from pprint import pprint
+# from pprint import pprint
 from queue import PriorityQueue
 from typing import MutableMapping
 from scipy import stats
 from pypfopt.expected_returns import mean_historical_return
-from pypfopt import risk_models, expected_returns
+from pypfopt import risk_models #, expected_returns
 from pypfopt.cla import CLA
 from pypfopt.efficient_frontier import EfficientFrontier
 from matplotlib.ticker import FuncFormatter
-from pypfopt.discrete_allocation import DiscreteAllocation, get_latest_prices
+from pypfopt.discrete_allocation import get_latest_prices #DiscreteAllocation,
 from datetime import datetime, timedelta
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ReplyKeyboardMarkup
@@ -43,6 +43,7 @@ logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
 collect_companies = False
 companies_list = []
 tic_list= []
+numders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
 
 PROXY = {
     'proxy_url': 'socks5://t1.learn.python.ru:1080',
@@ -147,7 +148,7 @@ def help_command(update, context):
     update.message.reply_text(
         f"1. Выбери сектор, акции которого тебе интересны.")
     update.message.reply_text(
-        f"2.Выбери компании, которые тебе интересны, из предложенных списков(вводи название и отправляй).")
+        f"2. Выбери компании, которые тебе интересны, из предложенных списков (вводи название и отправляй).")
     update.message.reply_text(
         f"3. Используй команду /tic, чтобы получить список тикеров.")
     update.message.reply_text(
@@ -155,7 +156,7 @@ def help_command(update, context):
     update.message.reply_text(
         f"5. Используй команду /describe, чтобы получить описание портфеля.")
     update.message.reply_text(
-        f"6. Используй команду /price, чтобы вывести график изменения цен, выбранных акций.")
+        f"6. Используй команду /price, чтобы вывести график изменения цен выбранных акций.")
     update.message.reply_text(
         f"7. Используй команду /budget, чтобы ввести сумму для расчета количества акций.")    
     update.message.reply_text(
@@ -286,9 +287,23 @@ def collecting_user_data(update, context):
         global budget
         budget = user_input
         print(budget)
-        update.message.reply_text(f'{"Сумма:"} {budget}')
-        update.message.reply_text(f'Для расчета вызовите команду /value')
-    return budget  
+        print(type(budget))
+        print(numders)
+        i = 0
+        key = 0
+        for i in range(len(budget) - 1):
+            print(len(budget) - 1)
+            print(i)
+            print(numders)
+            if budget[i] not in numders:
+                update.message.reply_text(f"Ой, это не число :(")
+                update.message.reply_text(
+                f"Используй команду /budget, чтобы ввести сумму для расчета количества акций.") 
+                break
+            else:
+                update.message.reply_text(f'{"Сумма:"} {budget} {"руб."}')
+                update.message.reply_text(f'Для расчета вызовите команду /value')
+                return budget
 
 
 def tic(update, context):   
@@ -331,22 +346,22 @@ def portfolio_construct(update, context):
     ax.xaxis.set_major_formatter(FuncFormatter(lambda x, _: '{:.0%}'.format(x)))
     ax.yaxis.set_major_formatter(FuncFormatter(lambda y, _: '{:.0%}'.format(y)))
     plt.savefig('markovitz_chart', dpi=50)
-    
+
     tickers =[]
     t_weights =[]
 
     for i in cleaned_weights:
-  
+
         if cleaned_weights[i] > 0:
              t_weights.append(cleaned_weights[i])
              tickers.append(i)
-    
+
     fig1, ax1 = plt.subplots()
     ax1.pie(t_weights, labels=tickers)
     ax1.axis('equal')
     patches, texts, auto = ax1.pie(t_weights, startangle=90, autopct='%1.1f%%' )
     plt.legend(patches, tickers, loc="best")
-    plt.savefig('portfilio_chart.png', facecolor = 'blue', bbox_inches='tight', dpi=50 )
+    plt.savefig('portfilio_chart.png', facecolor = 'white', bbox_inches='tight', dpi=50 )
 
     ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
     plt.legend()
@@ -356,11 +371,8 @@ def portfolio_construct(update, context):
     plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
     plt.savefig('price_chart.png', dpi = 50)
 
-    # update.message.reply_text(f'{cleaned_weights}')
     chat_id = update.effective_chat.id
     context.bot.send_photo(chat_id=chat_id, photo=open('portfilio_chart.png', 'rb'))
-    # context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
-    # context.bot.send_photo(chat_id=chat_id, photo=open('markovitz_chart', 'rb'))
     import os
     os.remove('portfilio_chart.png')
     print(cleaned_weights)
@@ -384,6 +396,7 @@ def price_chart(update, context):
     plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
     plt.savefig('price_chart.png', dpi = 50)
     chat_id = update.effective_chat.id
+    update.message.reply_text(f'{"*СКОРРЕКТИРОВАННАЯ ЦЕНА ЗАКРЫТИЯ*"}', parse_mode='MarkdownV2')
     context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
     return ax2
    
@@ -391,7 +404,7 @@ def user_budget(update, context):
     global collect_companies
     collect_companies = False
     if collect_companies == False: 
-        update.message.reply_text(f'{"Введите сумму в рублях."}')
+        update.message.reply_text(f'{"Введи сумму в рублях."}')
 
 def value_p(update, context):
     global budget
@@ -400,20 +413,30 @@ def value_p(update, context):
     data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
     usd = data_usd['Valute']['USD']
     usd = usd['Value']
+    print(usd)
     budget = int(budget)
     budget_usd = budget/usd
+    print(budget_usd)
     tc = latest_prices1.index
     tc = tc.tolist()
+    print(tc)
     quant = {}
     for i in tc:
         if i[-3] == '.':
             latest_prices1[i] = latest_prices1[i]/usd
         quant[i] = math.floor((budget_usd*cleaned_weights[i])/latest_prices1[i])
         print(quant)
-    
-    update.message.reply_text(f'{"*Потратив*"} {budget} {"вы сможете купить акции"}', parse_mode='MarkdownV2')
+
+    # latest_prices1 = pd.DataFrame({'stock ticker':latest_prices1.index, 'price':latest_prices1.values})
+    # latest_prices1.set_index('stock ticker', inplace=True)
+    update.message.reply_text(f'{"*РАСЧЕТ КОЛИЧЕСТВА АКЦИЙ*"}', parse_mode='MarkdownV2')
+    # update.message.reply_text(f'{"Курс 1 $ = "}{usd} {"руб."}')
+    update.message.reply_text(f'{"Потратив"} {budget} {"рублей"} {"вы сможете купить:"}')
     for i in quant:
-        update.message.reply_text(f'{i} {"в количестве"} {quant[i]}')
+        update.message.reply_text(f'{"("}{"Тикер:"} {i}{")"}  {"("}{"Количество:"} {quant[i]}{")"}')
+   
+        
+
 
 def main():
     mybot = Updater(settings.API_KEY, use_context=True)
