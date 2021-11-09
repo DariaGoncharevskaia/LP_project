@@ -15,6 +15,7 @@ import pypfopt.plotting as pplt
 import statsmodels.api as sm
 import requests
 import math
+import matplotlib.pyplot as plt
 
 # from pprint import pprint
 from queue import PriorityQueue
@@ -357,19 +358,12 @@ def portfolio_construct(update, context):
              tickers.append(i)
 
     fig1, ax1 = plt.subplots()
-    ax1.pie(t_weights, labels=tickers)
+    ax1.pie(t_weights) #, labels=tickers)
     ax1.axis('equal')
-    patches, texts, auto = ax1.pie(t_weights, startangle=90, autopct='%1.1f%%' )
+    patches, texts, auto = plt.pie(t_weights, startangle=90, autopct='%1.1f%%')
     plt.legend(patches, tickers, loc="best")
-    plt.savefig('portfilio_chart.png', facecolor = 'white', bbox_inches='tight', dpi=50 )
-
-    ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
-    plt.legend()
-    plt.title("Adjusted Close Price", fontsize=16)
-    plt.ylabel('Price', fontsize=14)
-    plt.xlabel('Year', fontsize=14)
-    plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
-    plt.savefig('price_chart.png', dpi = 50)
+    plt.axis('equal')
+    plt.savefig('portfilio_chart.png', facecolor = 'white', bbox_inches='tight', dpi=200)
 
     chat_id = update.effective_chat.id
     context.bot.send_photo(chat_id=chat_id, photo=open('portfilio_chart.png', 'rb'))
@@ -377,7 +371,6 @@ def portfolio_construct(update, context):
     os.remove('portfilio_chart.png')
     print(cleaned_weights)
     print(f'построение графика')
-    return  ax1
     return cleaned_weights
 
 def describe(update, context):
@@ -394,7 +387,7 @@ def price_chart(update, context):
     plt.ylabel('Price', fontsize=14)
     plt.xlabel('Year', fontsize=14)
     plt.grid(which="major", color='k', linestyle='-.', linewidth=0.5)
-    plt.savefig('price_chart.png', dpi = 50)
+    plt.savefig('price_chart.png', dpi = 200)
     chat_id = update.effective_chat.id
     update.message.reply_text(f'{"*СКОРРЕКТИРОВАННАЯ ЦЕНА ЗАКРЫТИЯ*"}', parse_mode='MarkdownV2')
     context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
