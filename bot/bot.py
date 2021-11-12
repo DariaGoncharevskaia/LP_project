@@ -30,6 +30,7 @@ from pypfopt.discrete_allocation import get_latest_prices #DiscreteAllocation,
 from datetime import datetime, timedelta
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ReplyKeyboardMarkup
+from yfinance import get_quote_data
 
 import finance
 import portfolio
@@ -142,8 +143,8 @@ global_keys = global_dict.keys()
 
 def greet_user(update, context):
     print("Вызван /start")
-    update.message.reply_text(
-        f"Привет! Вызови команду /help.")
+    chat = update.effective_chat
+    update.message.reply_text(f"{'Привет! Вызови команду /help.'}", chat = chat)
 
 def help_command(update, context):   
     update.message.reply_text(
@@ -159,9 +160,14 @@ def help_command(update, context):
     update.message.reply_text(
         f"6. Используй команду /price, чтобы вывести график изменения цен выбранных акций.")
     update.message.reply_text(
-        f"7. Используй команду /budget, чтобы ввести сумму для расчета количества акций.")    
+        f"7. Используй команду /info, чтобы получить информацию о курсе $ и стоимости акций.")  
+    update.message.reply_text(
+        f"8. Используй команду /budget, чтобы ввести сумму для расчета количества акций.")    
     update.message.reply_text(
         f"Если клавиатура снова понадобится, то вызови команду /keyboard.", 
+        reply_markup= main_keyboard())
+    update.message.reply_text(
+        f"Если захочешь начать заново, то вызови команду /start_again.", 
         reply_markup= main_keyboard())
 
 def get_keyboard(update, context):
@@ -180,7 +186,7 @@ def finance_handler(update, context):
     global collect_companies 
     collect_companies = True
     my_keyboard = ReplyKeyboardMarkup([['Финансы']], True)
-    update.message.reply_text(\
+    update.message.reply_text( \
     f"{'В секторе финансы я знаю такие компании:'} {', '.join(finance_comp_name)}",\
         reply_markup=main_keyboard())
     return collect_companies
@@ -274,14 +280,17 @@ def collecting_user_data(update, context):
         if user_input not in companies_list:
             companies_list.append(user_input)
         else:
-            update.message.reply_text(f"Такое название уже есть :(", reply_markup=main_keyboard())
+            # chat = update.effective_chat
+            update.message.reply_text(f"Такое название уже есть :(", reply_markup=main_keyboard()) #chat = chat)
         for el in companies_list:
             if el not in global_keys:
+                #chat = update.effective_chat
                 update.message.reply_text('Ошибка в названии компании, попробуй еще раз :(',
-                reply_markup=main_keyboard())
+                reply_markup=main_keyboard()) #, chat = chat)
                 companies_list.remove(el)
+       # chat = update.effective_chat
         update.message.reply_text(f'{"Компании:"} {", ".join(companies_list)}', \
-             reply_markup=main_keyboard())
+             reply_markup=main_keyboard()) #, chat = chat)
         return None
     else:
         print('button off')
@@ -297,32 +306,35 @@ def collecting_user_data(update, context):
             print(i)
             print(numders)
             if budget[i] not in numders:
-                update.message.reply_text(f"Ой, это не число :(")
+                #chat = update.effective_chat
+                update.message.reply_text(f'{"Ой, это не число :("}') #, chat = chat)
                 update.message.reply_text(
-                f"Используй команду /budget, чтобы ввести сумму для расчета количества акций.") 
+                f'{"Используй команду /budget, чтобы ввести сумму для расчета количества акций."}') #, chat = chat) 
                 break
             else:
-                update.message.reply_text(f'{"Сумма:"} {budget} {"руб."}')
-                update.message.reply_text(f'Для расчета вызовите команду /value')
+                #chat = update.effective_chat
+                update.message.reply_text(f'{"Сумма:"} {budget} {"руб."}')#, chat = chat)
+                update.message.reply_text(f'Для расчета вызови команду /value')#, chat = chat)
                 return budget
 
 
 def tic(update, context):   
-    global tic_list 
+    global tic_list
     for name in companies_list:
         name_to_append = global_dict.get(name)
         if name_to_append not in tic_list:
             tic_list.append(name_to_append)
     print("TIC LIST", tic_list)
-    update.message.reply_text(f'{"Тикеры:"} {", ".join(tic_list)}')
+    #chat = update.effective_chat
+    update.message.reply_text(f'{"Тикеры:"} {", ".join(tic_list)}') #, chat = chat)
     return tic_list
 
 
 def portfolio_construct(update, context):
     global data 
     global mu 
-    global S 
-    global ex 
+    # global S 
+    # global ex 
     global weights
     global cleaned_weights
     global ef
@@ -339,7 +351,8 @@ def portfolio_construct(update, context):
     print(data)
     update.message.reply_text(f'{"*СОСТАВ ПОРТФЕЛЯ*"}', parse_mode='MarkdownV2')
     for key, value in cleaned_weights.items():
-        update.message.reply_text(f'{"(Тикер: {0})  (Вес: {1})".format(key,value)}')
+       # chat = update.effective_chat
+        update.message.reply_text(f'{"(Тикер: {0})  (Вес: {1})".format(key,value)}') #, chat = chat)
 
 
     cl_obj = CLA(mu, S)
@@ -375,10 +388,11 @@ def portfolio_construct(update, context):
 
 def describe(update, context):
     dis = ef.portfolio_performance(verbose=True)
-    update.message.reply_text(f'{"*ОБЩИЕ ХАРАКТЕРИСТИКИ*"}', parse_mode='MarkdownV2')
-    update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}')
-    update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}')
-    update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}')
+   # chat = update.effective_chat
+    update.message.reply_text(f'{"*ОБЩИЕ ХАРАКТЕРИСТИКИ*"}', parse_mode='MarkdownV2') #, chat=chat)
+    update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}') #, chat=chat)
+    update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}') #, chat=chat)
+    update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}') #, chat=chat)
 
 def price_chart(update, context):
     ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
@@ -397,11 +411,40 @@ def user_budget(update, context):
     global collect_companies
     collect_companies = False
     if collect_companies == False: 
-        update.message.reply_text(f'{"Введи сумму в рублях."}')
+        #)chat = update.effective_chat
+        update.message.reply_text(f'{"Введи сумму в рублях."}') #, chat=chat)
+
+
+def value_info(update, context):
+    global budget
+    # global data_usd
+    # global usd
+    # global latest_prices1
+    # global tc
+    latest_prices1 = get_latest_prices(data)
+    data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
+    usd = data_usd['Valute']['USD']
+    usd = usd['Value']
+    tc = latest_prices1.index
+    tc = tc.tolist()
+    print(tc)
+    for i in tc:
+        if i[-3] == '.':
+            latest_prices1[i] = latest_prices1[i]/usd
+    latest_prices1 = pd.DataFrame({'ticker':latest_prices1.index, 'price, $':latest_prices1.values})
+    latest_prices1['price, $']=latest_prices1['price, $'].round(2)
+    #chat = update.effective_chat
+    update.message.reply_text(f'{"*КУРС, ЦЕНЫ*"}', parse_mode='MarkdownV2') #, chat=chat)
+    update.message.reply_text(f'{"1 $ = "}{usd} {"руб."}') #, chat=chat)
+    for index, row in latest_prices1.iterrows():
+        update.message.reply_text(f'(Тикер: {row["ticker"]})  (Цена: {row["price, $"]}$)') #, chat=chat)
+
 
 def value_p(update, context):
     global budget
-    global data_usd
+    # global data_usd
+    # global usd
+    # global latest_prices1
     latest_prices1 = get_latest_prices(data)
     data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
     usd = data_usd['Valute']['USD']
@@ -420,19 +463,32 @@ def value_p(update, context):
         quant[i] = math.floor((budget_usd*cleaned_weights[i])/latest_prices1[i])
         print(quant)
 
-    # latest_prices1 = pd.DataFrame({'stock ticker':latest_prices1.index, 'price':latest_prices1.values})
-    # latest_prices1.set_index('stock ticker', inplace=True)
     update.message.reply_text(f'{"*РАСЧЕТ КОЛИЧЕСТВА АКЦИЙ*"}', parse_mode='MarkdownV2')
-    # update.message.reply_text(f'{"Курс 1 $ = "}{usd} {"руб."}')
-    update.message.reply_text(f'{"Потратив"} {budget} {"рублей"} {"вы сможете купить:"}')
+    #chat = update.effective_chat
+    update.message.reply_text(f'{"Потратив"} {budget} {"рублей"} {"вы сможете купить:"}') #, chat=chat)
     for i in quant:
-        update.message.reply_text(f'{"("}{"Тикер:"} {i}{")"}  {"("}{"Количество:"} {quant[i]}{")"}')
-   
-        
+        update.message.reply_text(f'{"("}{"Тикер:"} {i}{")"}  {"("}{"Количество:"} {quant[i]}{")"}') #, chat=chat)
+    
+def start_again(update, context):    
+    global companies_list
+    global tic_list
+    global data
+    global weights
+    global cleaned_weights
+    global budget
+
+    companies_list = [] 
+    tic_list = [] 
+    data = data[0:0] 
+    weights = 0
+    cleaned_weights = 0
+    budget = 0
+    update.message.reply_text(f'{"Теперь можно начать заново."}', reply_markup=main_keyboard())
 
 
 def main():
     mybot = Updater(settings.API_KEY, use_context=True)
+    
     dp = mybot.dispatcher
     dp.add_handler(CommandHandler("start", greet_user))
     dp.add_handler(MessageHandler(Filters.regex('^Финансы'), finance_handler))
@@ -452,6 +508,8 @@ def main():
     dp.add_handler(CommandHandler("price", price_chart))
     dp.add_handler(CommandHandler("budget", user_budget))
     dp.add_handler(CommandHandler("value", value_p))
+    dp.add_handler(CommandHandler("info", value_info))
+    dp.add_handler(CommandHandler("start_again", start_again))
     dp.add_handler(MessageHandler(Filters.text, collecting_user_data))
    
     logging.info("Бот стартовал")
