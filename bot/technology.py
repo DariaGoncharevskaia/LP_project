@@ -37,6 +37,3 @@ conn = redis.Redis('localhost')
 
 print(json.dumps(technology_dict))
 conn.hmset("technology_dict", technology_dict)
-# print(json.dumps(technology_dict))
-# for key, value in technology_dict.items():
-#     conn.hset("technology_dict", key, value)

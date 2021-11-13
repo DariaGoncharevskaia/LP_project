@@ -33,8 +33,3 @@ conn = redis.Redis('localhost')
 
 print(json.dumps(finance_dict))
 conn.hmset("finance_dict", finance_dict)
-#for key, value in finance_dict.items():
- #   conn.hset("finance_dict", key, value)
-
-#for key, value in conn.hgetall("finance_dict").items():
- #   print(key.decode('utf-8'), value.decode())

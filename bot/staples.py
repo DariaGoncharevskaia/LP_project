@@ -33,6 +33,3 @@ conn = redis.Redis('localhost')
 
 print(json.dumps(staples_dict))
 conn.hmset("staples_dict", staples_dict)
-# print(json.dumps(staples_dict))
-# for key, value in staples_dict.items():
-#     conn.hset("staples_dict", key, value)

@@ -35,6 +35,3 @@ conn = redis.Redis('localhost')
 
 print(json.dumps(materials_dict))
 conn.hmset("materials_dict", materials_dict)
-#print(json.dumps(materials_dict))
-#for key, value in materials_dict.items():
-#    conn.hset("materials_dict", key, value)

@@ -34,6 +34,3 @@ conn = redis.Redis('localhost')
 
 print(json.dumps(discretionary_dict))
 conn.hmset("discretionary_dict", discretionary_dict)
-#print(json.dumps(discretionary_dict))
-#for key, value in discretionary_dict.items():
- #   conn.hset("discretionary_dict", key, value)

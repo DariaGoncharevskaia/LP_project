@@ -3,24 +3,14 @@ matplotlib.use('TkAgg')
 import logging
 import pandas as pd
 import yfinance as yf
-import numpy as np
-import markdown2
 import redis
-import json 
-import os
-import scipy
-import pandas_datareader as web
 import matplotlib.pyplot as plt
 import pypfopt.plotting as pplt
-import statsmodels.api as sm
 import requests
 import math
 import matplotlib.pyplot as plt
 
 # from pprint import pprint
-from queue import PriorityQueue
-from typing import MutableMapping
-from scipy import stats
 from pypfopt.expected_returns import mean_historical_return
 from pypfopt import risk_models #, expected_returns
 from pypfopt.cla import CLA
@@ -30,11 +20,10 @@ from pypfopt.discrete_allocation import get_latest_prices #DiscreteAllocation,
 from datetime import datetime, timedelta
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 from telegram import ReplyKeyboardMarkup
-from yfinance import get_quote_data
+import db_settings
 
-import finance
-import portfolio
-import settings
+
+from db import db, get_or_create_user
 
 
 logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
@@ -42,10 +31,9 @@ logging.basicConfig(format='%(name)s - %(levelname)s - %(message)s',
                     filename='bot.log')
 
 
+data = None
 collect_companies = False
-companies_list = []
-tic_list= []
-numders = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0']
+
 
 PROXY = {
     'proxy_url': 'socks5://t1.learn.python.ru:1080',
@@ -143,8 +131,8 @@ global_keys = global_dict.keys()
 
 def greet_user(update, context):
     print("Вызван /start")
-    chat = update.effective_chat
-    update.message.reply_text(f"{'Привет! Вызови команду /help.'}", chat = chat)
+    get_or_create_user(db, update.effective_user, update.message.chat.id)
+    update.message.reply_text(f"{'Привет! Вызови команду /help.'}")
 
 def help_command(update, context):   
     update.message.reply_text(
@@ -180,164 +168,121 @@ def main_keyboard():
     return ReplyKeyboardMarkup([['Финансы'], ['Потреб'], ['Энергетика'], ['Телеком'],
     ['Материалы'], ['Технологии'], ['Здравоохранение'], ['Промышленность'], ['Ритэйл']])
 
-
 def finance_handler(update, context):
-    text = update.message.text
-    global collect_companies 
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Финансы']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text( \
     f"{'В секторе финансы я знаю такие компании:'} {', '.join(finance_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def discretionary_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Потреб']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе вторичной необходимости я знаю такие компании:'} {', '.join(discretionary_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def energy_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Энергетика']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе энергетика я знаю такие компании:'} {', '.join(energy_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def healthcare_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Здравоохранение']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе здравоохранение я знаю такие компании:'} {', '.join(healthcare_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def industrials_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Промышленность']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе промышленность я знаю такие компании:'} {', '.join(industrials_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def materials_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Материалы']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе материалы я знаю такие компании:'} {', '.join(materials_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def staples_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Ритэйл']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе розничной торговли я знаю такие компании:'} {', '.join(staples_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def technology_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Технологии']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе технологии я знаю такие компании:'} {', '.join(technology_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def tele_handler(update, context):
-    text = update.message.text
-    global collect_companies
-    collect_companies = True
-    my_keyboard = ReplyKeyboardMarkup([['Телеком']], True)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'collect_companies': True}})
     update.message.reply_text(\
     f"{'В секторе телеком я знаю такие компании:'} {', '.join(telecom_comp_name)}",\
         reply_markup=main_keyboard())
-    return collect_companies
 
 def collecting_user_data(update, context):
-    global collect_companies
-    global companies_list
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    collect_companies = user.get('collect_companies', False)
+    companies_list = user.get('companies_list', [])
     print(collect_companies)
     user_input = update.message.text
     if collect_companies:
         if user_input not in companies_list:
             companies_list.append(user_input)
         else:
-            # chat = update.effective_chat
             update.message.reply_text(f"Такое название уже есть :(", reply_markup=main_keyboard()) #chat = chat)
         for el in companies_list:
             if el not in global_keys:
-                #chat = update.effective_chat
                 update.message.reply_text('Ошибка в названии компании, попробуй еще раз :(',
-                reply_markup=main_keyboard()) #, chat = chat)
+                reply_markup=main_keyboard()) 
                 companies_list.remove(el)
-       # chat = update.effective_chat
         update.message.reply_text(f'{"Компании:"} {", ".join(companies_list)}', \
-             reply_markup=main_keyboard()) #, chat = chat)
+             reply_markup=main_keyboard())
+        db.users.update({"user_id": user["user_id"]}, {'$set': {'companies_list': companies_list}})
         return None
     else:
         print('button off')
-        global budget
         budget = user_input
         print(budget)
-        print(type(budget))
-        print(numders)
-        i = 0
-        key = 0
-        for i in range(len(budget) - 1):
-            print(len(budget) - 1)
-            print(i)
-            print(numders)
-            if budget[i] not in numders:
-                #chat = update.effective_chat
-                update.message.reply_text(f'{"Ой, это не число :("}') #, chat = chat)
-                update.message.reply_text(
-                f'{"Используй команду /budget, чтобы ввести сумму для расчета количества акций."}') #, chat = chat) 
-                break
-            else:
-                #chat = update.effective_chat
-                update.message.reply_text(f'{"Сумма:"} {budget} {"руб."}')#, chat = chat)
-                update.message.reply_text(f'Для расчета вызови команду /value')#, chat = chat)
-                return budget
+        if not budget.isdigit():
+            update.message.reply_text(f'{"Ой, это не число :("}') 
+            update.message.reply_text(
+            f'{"Используй команду /budget, чтобы ввести сумму для расчета количества акций."}')  
+        else:
+            db.users.update({"user_id": user["user_id"]}, {'$set': {'budget': budget}})
+            update.message.reply_text(f'{"Сумма:"} {budget} {"руб."}')
+            update.message.reply_text(f'Для расчета вызови команду /value')
+            return budget
 
 
 def tic(update, context):   
-    global tic_list
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    companies_list = user.get('companies_list', [])
+    tic_list = user.get('tic_list', [])
     for name in companies_list:
         name_to_append = global_dict.get(name)
         if name_to_append not in tic_list:
             tic_list.append(name_to_append)
     print("TIC LIST", tic_list)
-    #chat = update.effective_chat
-    update.message.reply_text(f'{"Тикеры:"} {", ".join(tic_list)}') #, chat = chat)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'tic_list': tic_list}})
+    update.message.reply_text(f'{"Тикеры:"} {", ".join(tic_list)}')
     return tic_list
 
 
 def portfolio_construct(update, context):
-    global data 
-    global mu 
-    # global S 
-    # global ex 
-    global weights
-    global cleaned_weights
-    global ef
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    tic_list = user.get('tic_list', [])
     data = pd.DataFrame(columns=tic_list)
     today = datetime.today()
 
@@ -348,11 +293,11 @@ def portfolio_construct(update, context):
     ef = EfficientFrontier(mu, S, weight_bounds = (0,1))
     weights = ef.max_sharpe()
     cleaned_weights = ef.clean_weights()
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'cleaned_weights': cleaned_weights, 'collect_companies': False}})
     print(data)
     update.message.reply_text(f'{"*СОСТАВ ПОРТФЕЛЯ*"}', parse_mode='MarkdownV2')
     for key, value in cleaned_weights.items():
-       # chat = update.effective_chat
-        update.message.reply_text(f'{"(Тикер: {0})  (Вес: {1})".format(key,value)}') #, chat = chat)
+        update.message.reply_text(f'{"(Тикер: {0})  (Вес: {1})".format(key,value)}') 
 
 
     cl_obj = CLA(mu, S)
@@ -387,14 +332,30 @@ def portfolio_construct(update, context):
     return cleaned_weights
 
 def describe(update, context):
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    tic_list = user.get('tic_list', [])
+    data = pd.DataFrame(columns=tic_list)
+    today = datetime.today()
+
+    for ticker in tic_list:
+        data[ticker] = yf.download(ticker, start = today - timedelta(days=365), end=today) ['Adj Close']
+    mu = mean_historical_return(data)
+    S = risk_models.sample_cov(data)
+    ef = EfficientFrontier(mu, S, weight_bounds = (0,1))
+    weights = ef.max_sharpe()
     dis = ef.portfolio_performance(verbose=True)
-   # chat = update.effective_chat
-    update.message.reply_text(f'{"*ОБЩИЕ ХАРАКТЕРИСТИКИ*"}', parse_mode='MarkdownV2') #, chat=chat)
-    update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}') #, chat=chat)
-    update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}') #, chat=chat)
-    update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}') #, chat=chat)
+    update.message.reply_text(f'{"*ОБЩИЕ ХАРАКТЕРИСТИКИ*"}', parse_mode='MarkdownV2')
+    update.message.reply_text(f'{"Ожидаемая годовая прибыль:"} {format(dis[0]*100, ".1f")}{"%"}')
+    update.message.reply_text(f'{"Годовая волатильность:"} {format(dis[1]*100, ".1f")}{"%"}')
+    update.message.reply_text(f'{"Коэффициент Шарпа:"} {format(dis[2], ".1f")}')
 
 def price_chart(update, context):
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    tic_list = user.get('tic_list', [])
+    data = pd.DataFrame(columns=tic_list)
+    today = datetime.today()
+    for ticker in tic_list:
+        data[ticker] = yf.download(ticker, start = today - timedelta(days=365), end=today) ['Adj Close']
     ax2 = ((data.pct_change()+1).cumprod()).plot(figsize=(10, 7))
     plt.legend()
     plt.title("Adjusted Close Price", fontsize=16)
@@ -406,21 +367,24 @@ def price_chart(update, context):
     update.message.reply_text(f'{"*СКОРРЕКТИРОВАННАЯ ЦЕНА ЗАКРЫТИЯ*"}', parse_mode='MarkdownV2')
     context.bot.send_photo(chat_id=chat_id, photo=open('price_chart.png', 'rb'))
     return ax2
+
    
 def user_budget(update, context):
-    global collect_companies
-    collect_companies = False
-    if collect_companies == False: 
-        #)chat = update.effective_chat
-        update.message.reply_text(f'{"Введи сумму в рублях."}') #, chat=chat)
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    collect_companies = user.get('collect_companies', False)
+    if not collect_companies: 
+        update.message.reply_text(f'{"Введи сумму в рублях."}')
+
 
 
 def value_info(update, context):
-    global budget
-    # global data_usd
-    # global usd
-    # global latest_prices1
-    # global tc
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    tic_list = user.get('tic_list', [])
+    data = pd.DataFrame(columns=tic_list)
+    today = datetime.today()
+
+    for ticker in tic_list:
+        data[ticker] = yf.download(ticker, start = today - timedelta(days=365), end=today) ['Adj Close']
     latest_prices1 = get_latest_prices(data)
     data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
     usd = data_usd['Valute']['USD']
@@ -433,18 +397,22 @@ def value_info(update, context):
             latest_prices1[i] = latest_prices1[i]/usd
     latest_prices1 = pd.DataFrame({'ticker':latest_prices1.index, 'price, $':latest_prices1.values})
     latest_prices1['price, $']=latest_prices1['price, $'].round(2)
-    #chat = update.effective_chat
-    update.message.reply_text(f'{"*КУРС, ЦЕНЫ*"}', parse_mode='MarkdownV2') #, chat=chat)
-    update.message.reply_text(f'{"1 $ = "}{usd} {"руб."}') #, chat=chat)
+    update.message.reply_text(f'{"*КУРС, ЦЕНЫ*"}', parse_mode='MarkdownV2')
+    update.message.reply_text(f'{"1 $ = "}{usd} {"руб."}')
     for index, row in latest_prices1.iterrows():
-        update.message.reply_text(f'(Тикер: {row["ticker"]})  (Цена: {row["price, $"]}$)') #, chat=chat)
+        update.message.reply_text(f'(Тикер: {row["ticker"]})  (Цена: {row["price, $"]}$)')
 
 
 def value_p(update, context):
-    global budget
-    # global data_usd
-    # global usd
-    # global latest_prices1
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    budget = user.get('budget', '')
+    cleaned_weights = user.get('cleaned_weights', {})
+    tic_list = user.get('tic_list', [])
+    data = pd.DataFrame(columns=tic_list)
+    today = datetime.today()
+
+    for ticker in tic_list:
+        data[ticker] = yf.download(ticker, start = today - timedelta(days=365), end=today) ['Adj Close']
     latest_prices1 = get_latest_prices(data)
     data_usd = requests.get('https://www.cbr-xml-daily.ru/daily_json.js').json()
     usd = data_usd['Valute']['USD']
@@ -464,30 +432,18 @@ def value_p(update, context):
         print(quant)
 
     update.message.reply_text(f'{"*РАСЧЕТ КОЛИЧЕСТВА АКЦИЙ*"}', parse_mode='MarkdownV2')
-    #chat = update.effective_chat
-    update.message.reply_text(f'{"Потратив"} {budget} {"рублей"} {"вы сможете купить:"}') #, chat=chat)
+    update.message.reply_text(f'{"Потратив"} {budget} {"рублей"} {"вы сможете купить:"}')
     for i in quant:
-        update.message.reply_text(f'{"("}{"Тикер:"} {i}{")"}  {"("}{"Количество:"} {quant[i]}{")"}') #, chat=chat)
+        update.message.reply_text(f'{"("}{"Тикер:"} {i}{")"}  {"("}{"Количество:"} {quant[i]}{")"}')
     
 def start_again(update, context):    
-    global companies_list
-    global tic_list
-    global data
-    global weights
-    global cleaned_weights
-    global budget
-
-    companies_list = [] 
-    tic_list = [] 
-    data = data[0:0] 
-    weights = 0
-    cleaned_weights = 0
-    budget = 0
+    user = get_or_create_user(db, update.effective_user, update.message.chat.id)
+    db.users.update({"user_id": user["user_id"]}, {'$set': {'tic_list': [], 'companies_list': [], 'budget': '', 'cleaned_weights': {}}})
     update.message.reply_text(f'{"Теперь можно начать заново."}', reply_markup=main_keyboard())
 
 
 def main():
-    mybot = Updater(settings.API_KEY, use_context=True)
+    mybot = Updater(db_settings.API_KEY, use_context=True)
     
     dp = mybot.dispatcher
     dp.add_handler(CommandHandler("start", greet_user))
